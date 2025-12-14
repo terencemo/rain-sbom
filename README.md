@@ -229,7 +229,6 @@ Inspired by:
 ## Support
 
 - 📫 Issues: [GitHub Issues](https://github.com/terencemo/rain-sbom/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/terencemo/rain-sbom/discussions)
 
 ---
 
