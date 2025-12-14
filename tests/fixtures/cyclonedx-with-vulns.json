@@ -1,0 +1,40 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:8a4e3c5f-9d1a-4b2c-8e7f-6d5a4b3c2e1d",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2024-12-10T14:30:00Z",
+    "component": {
+      "type": "application",
+      "name": "vulnerable-app",
+      "version": "0.1.0"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:pypi/pillow@9.3.0",
+      "type": "library",
+      "name": "pillow",
+      "version": "9.3.0",
+      "purl": "pkg:pypi/pillow@9.3.0",
+      "licenses": [{"license": {"name": "HPND"}}]
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "id": "CVE-2023-50447",
+      "description": "Pillow denial of service vulnerability",
+      "ratings": [
+        {
+          "severity": "HIGH",
+          "score": 8.1,
+          "method": "CVSSv31"
+        }
+      ],
+      "affects": [
+        {"ref": "pkg:pypi/pillow@9.3.0"}
+      ]
+    }
+  ]
+}
