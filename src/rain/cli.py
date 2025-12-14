@@ -8,8 +8,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .db.session import get_session_factory, init_db, get_db_path
 from .models.domain import ParsedSBOM
 from .parsers import ParserError, get_parser
+from .services.sbom_service import SBOMService
 
 # Setup logging
 logging.basicConfig(
@@ -103,15 +105,17 @@ async def parse_command(args: argparse.Namespace) -> int:
     
     # Read file
     try:
+        file_content = "" # Initialize
         with open(file_path) as f:
-            data = json.load(f)
+            file_content = f.read() # Save for later
+        data = json.loads(file_content)
     except json.JSONDecodeError as e:
         print(f"❌ Error: Invalid JSON: {e}", file=sys.stderr)
         return 1
     except Exception as e:
         print(f"❌ Error reading file: {e}", file=sys.stderr)
         return 1
-    
+
     # Parse SBOM
     try:
         parser = get_parser(data)
@@ -125,13 +129,13 @@ async def parse_command(args: argparse.Namespace) -> int:
             import traceback
             traceback.print_exc()
         return 1
-    
+
     # Output results
     if args.json:
         print_json(sbom)
     else:
         print_summary(sbom)
-    
+
     # Save to file if requested
     if args.output:
         output_path = Path(args.output)
@@ -151,14 +155,78 @@ async def parse_command(args: argparse.Namespace) -> int:
         except Exception as e:
             print(f"❌ Error saving file: {e}", file=sys.stderr)
             return 1
-    
-    # TODO: Database storage (when --save flag is implemented)
+
+    # Save to database if requested
     if args.save:
         print("\n⚠️  Database storage not yet implemented")
         print("   (Coming soon!)")
-    
+        try:
+            # Initialize database
+            await init_db()
+
+            # Get session and service
+            session_factory = get_session_factory()
+            async with session_factory() as session:
+                service = SBOMService(session)
+
+                # Save to database
+                db_sbom = await service.save_from_file(
+                    file_content,
+                    name=args.name
+                )
+
+                print(f"\n💾 Saved to database (ID: {db_sbom.id})")
+                print(f"📁 Database: {get_db_path()}")
+
+        except Exception as e:
+            print(f"❌ Error saving to database: {e}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+                traceback.print_exc()
+            return 1
+
     return 0
 
+async def list_command(args: argparse.Namespace) -> int:
+    """Handle list command."""
+    try:
+        # Initialize database
+        await init_db()
+
+        # Get session and service
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            service = SBOMService(session)
+
+            # List SBOMs
+            sboms = await service.list_all(limit=args.limit)
+            total = await service.count()
+
+            if not sboms:
+                print("No SBOMs in database")
+                print(f"\n📁 Database: {get_db_path()}")
+                return 0
+
+            # Print table
+            print(f"{'ID':<5} {'Name':<30} {'Format':<12} {'Components':<12} {'Date':<20}")
+            print("-" * 80)
+
+            for sbom in sboms:
+                comp_count = len(sbom.components)
+                date_str = sbom.uploaded_at.strftime("%Y-%m-%d %H:%M")
+                print(f"{sbom.id:<5} {sbom.name[:28]:<30} {sbom.format:<12} {comp_count:<12} {date_str:<20}")
+
+            print(f"\nTotal: {total} SBOMs")
+            print(f"📁 Database: {get_db_path()}")
+
+    except Exception as e:
+        print(f"❌ Error listing SBOMs: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+
+    return 0
 
 def main() -> int:
     """Main CLI entry point."""
@@ -210,6 +278,23 @@ Examples:
         help="Verbose output (show warnings)"
     )
     
+    # List command
+    list_parser = subparsers.add_parser(
+        "list",
+        help="List stored SBOMs"
+    )
+    list_parser.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="Maximum number to show (default: 100)"
+    )
+    list_parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Verbose output"
+    )
+
     args = parser.parse_args()
     
     # Set log level
@@ -219,6 +304,8 @@ Examples:
     # Handle commands
     if args.command == "parse":
         return asyncio.run(parse_command(args))
+    elif args.command == "list":
+        return asyncio.run(list_command(args))
     else:
         parser.print_help()
         return 1
