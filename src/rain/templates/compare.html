@@ -1,0 +1,108 @@
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="grid grid-cols-2 gap-4 pb-4 border-b">
+        <div class="bg-blue-50 p-4 rounded">
+            <h3 class="font-bold text-blue-900">Baseline</h3>
+            <p class="text-sm">{{ result.sbom1.name }}</p>
+            <p class="text-xs text-gray-600">{{ result.sbom1.format }} | v{{ result.sbom1.version or 'N/A' }}</p>
+        </div>
+        <div class="bg-green-50 p-4 rounded">
+            <h3 class="font-bold text-green-900">Comparison</h3>
+            <p class="text-sm">{{ result.sbom2.name }}</p>
+            <p class="text-xs text-gray-600">{{ result.sbom2.format }} | v{{ result.sbom2.version or 'N/A' }}</p>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="grid grid-cols-4 gap-4">
+        <div class="bg-green-50 p-4 rounded text-center">
+            <div class="text-3xl font-bold text-green-600">{{ result.summary.added }}</div>
+            <div class="text-sm text-gray-600">Added</div>
+        </div>
+        <div class="bg-red-50 p-4 rounded text-center">
+            <div class="text-3xl font-bold text-red-600">{{ result.summary.removed }}</div>
+            <div class="text-sm text-gray-600">Removed</div>
+        </div>
+        <div class="bg-yellow-50 p-4 rounded text-center">
+            <div class="text-3xl font-bold text-yellow-600">{{ result.summary.changed }}</div>
+            <div class="text-sm text-gray-600">Changed</div>
+        </div>
+        <div class="bg-gray-50 p-4 rounded text-center">
+            <div class="text-3xl font-bold text-gray-600">{{ result.summary.unchanged }}</div>
+            <div class="text-sm text-gray-600">Unchanged</div>
+        </div>
+    </div>
+
+    <!-- Added Components -->
+    {% if result.added %}
+    <div class="border-l-4 border-green-500 bg-green-50 p-4">
+        <h4 class="font-bold text-green-900 mb-2">✅ Added Components ({{ result.added|length }})</h4>
+        <div class="space-y-1 max-h-48 overflow-y-auto">
+            {% for comp in result.added %}
+            <div class="text-sm">
+                <span class="font-medium">{{ comp.name }}</span>
+                {% if comp.version %}<span class="text-gray-600">v{{ comp.version }}</span>{% endif %}
+                {% if comp.license %}<span class="ml-2 px-2 py-0.5 bg-gray-100 rounded text-xs">{{ comp.license }}</span>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Removed Components -->
+    {% if result.removed %}
+    <div class="border-l-4 border-red-500 bg-red-50 p-4">
+        <h4 class="font-bold text-red-900 mb-2">❌ Removed Components ({{ result.removed|length }})</h4>
+        <div class="space-y-1 max-h-48 overflow-y-auto">
+            {% for comp in result.removed %}
+            <div class="text-sm">
+                <span class="font-medium">{{ comp.name }}</span>
+                {% if comp.version %}<span class="text-gray-600">v{{ comp.version }}</span>{% endif %}
+                {% if comp.license %}<span class="ml-2 px-2 py-0.5 bg-gray-100 rounded text-xs">{{ comp.license }}</span>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Changed Components -->
+    {% if result.changed %}
+    <div class="border-l-4 border-yellow-500 bg-yellow-50 p-4">
+        <h4 class="font-bold text-yellow-900 mb-2">🔄 Version Changes ({{ result.changed|length }})</h4>
+        <div class="space-y-2 max-h-48 overflow-y-auto">
+            {% for comp in result.changed %}
+            <div class="text-sm">
+                <span class="font-medium">{{ comp.name }}</span>
+                <span class="text-gray-600">
+                    {{ comp.old_version or 'N/A' }} → {{ comp.new_version or 'N/A' }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- License Changes -->
+    {% if result.license_changes %}
+    <div class="border-l-4 border-orange-500 bg-orange-50 p-4">
+        <h4 class="font-bold text-orange-900 mb-2">⚖️ License Changes ({{ result.license_changes|length }})</h4>
+        <div class="space-y-2 max-h-48 overflow-y-auto">
+            {% for comp in result.license_changes %}
+            <div class="text-sm">
+                <span class="font-medium">{{ comp.name }}</span>
+                <span class="text-gray-600">
+                    {{ comp.old_license or 'None' }} → {{ comp.new_license or 'None' }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- No Changes -->
+    {% if not result.added and not result.removed and not result.changed and not result.license_changes %}
+    <div class="text-center py-8 text-gray-500">
+        <p class="text-lg">✨ SBOMs are identical</p>
+    </div>
+    {% endif %}
+</div>

@@ -96,12 +96,106 @@
             </div>
         </div>
     </div>
+
+    <!-- Add this section AFTER the SBOM List section in index.html -->
+    <!-- Comparison Section -->
+    <div class="bg-white rounded-lg shadow-md p-6 mt-8" x-data="{ sbom1: '', sbom2: '' }">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">🔍 Compare SBOMs</h2>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Baseline SBOM</label>
+                <select
+                    x-model="sbom1"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    hx-get="/api/sboms"
+                    hx-trigger="load"
+                    hx-swap="none"
+                >
+                    <option value="">Select baseline...</option>
+                    <!-- Options loaded dynamically -->
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Compare With</label>
+                <select
+                    x-model="sbom2"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="">Select comparison...</option>
+                    <!-- Options loaded dynamically -->
+                </select>
+            </div>
+        </div>
+
+        <button
+            x-bind:disabled="!sbom1 || !sbom2"
+            x-on:click="compare(sbom1, sbom2)"
+            class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+        >
+            Compare SBOMs
+        </button>
+
+        <div
+            id="comparison-result"
+            class="mt-6"
+        ></div>
+    </div>
 </div>
 
 <script>
     function rainApp() {
         return {
-            // Alpine.js data/methods can go here if needed
+            sboms: [],
+
+            init() {
+                this.loadSBOMs();
+            },
+
+            async loadSBOMs() {
+                try {
+                    const response = await fetch('/api/sboms');
+                    const data = await response.json();
+                    this.sboms = data.items || [];
+
+                    // Populate select options
+                    const selects = document.querySelectorAll('select[x-model]');
+                    selects.forEach(select => {
+                        select.innerHTML = '<option value="">Select...</option>';
+                        this.sboms.forEach(sbom => {
+                            const option = document.createElement('option');
+                            option.value = sbom.id;
+                            option.textContent = `${sbom.name} (${sbom.format})`;
+                            select.appendChild(option);
+                        });
+                    });
+                } catch (error) {
+                    console.error('Error loading SBOMs:', error);
+                }
+            },
+
+            async compare(sbom1Id, sbom2Id) {
+                if (!sbom1Id || !sbom2Id) return;
+
+                try {
+                    const response = await fetch(`/api/compare?sbom1_id=${sbom1Id}&sbom2_id=${sbom2Id}`, {
+                        method: 'POST'
+                    });
+
+                    if (!response.ok) throw new Error('Comparison failed');
+
+                    const result = await response.json();
+
+                    // Render result via htmx
+                    htmx.ajax('GET', `/api/compare-html?sbom1_id=${sbom1Id}&sbom2_id=${sbom2Id}`, {
+                        target: '#comparison-result'
+                    });
+                } catch (error) {
+                    console.error('Error comparing SBOMs:', error);
+                    document.getElementById('comparison-result').innerHTML =
+                        '<div class="text-red-600 p-4 bg-red-50 rounded">Error comparing SBOMs</div>';
+                }
+            }
         }
     }
 </script>
