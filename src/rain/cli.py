@@ -228,6 +228,174 @@ async def list_command(args: argparse.Namespace) -> int:
 
     return 0
 
+async def compare_command(args: argparse.Namespace) -> int:
+    """Handle compare command."""
+    file1_path = Path(args.file1)
+    file2_path = Path(args.file2)
+    
+    # Check files exist
+    if not file1_path.exists():
+        print(f"❌ Error: File not found: {file1_path}", file=sys.stderr)
+        return 1
+    if not file2_path.exists():
+        print(f"❌ Error: File not found: {file2_path}", file=sys.stderr)
+        return 1
+    
+    try:
+        # Initialize database
+        await init_db()
+        
+        # Get session and services
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            from .services.compare_service import CompareService
+            
+            sbom_service = SBOMService(session)
+            compare_service = CompareService(session)
+            
+            # Read and parse both files
+            with open(file1_path) as f:
+                file1_content = f.read()
+            with open(file2_path) as f:
+                file2_content = f.read()
+            
+            # Save both to database temporarily
+            sbom1 = await sbom_service.save_from_file(
+                file1_content,
+                name=f"Compare: {file1_path.name}"
+            )
+            sbom2 = await sbom_service.save_from_file(
+                file2_content,
+                name=f"Compare: {file2_path.name}"
+            )
+            
+            print(f"Comparing SBOMs...")
+            print(f"Baseline:   {sbom1.name} ({sbom1.format} {sbom1.spec_version})")
+            print(f"Target:     {sbom2.name} ({sbom2.format} {sbom2.spec_version})")
+            print()
+            
+            # Compare
+            result = await compare_service.compare(sbom1.id, sbom2.id)
+            
+            # Print results
+            if args.json:
+                print_comparison_json(result)
+            else:
+                print_comparison_summary(result)
+            
+            # Clean up temporary SBOMs unless --save flag
+            if not args.save:
+                await sbom_service.delete(sbom1.id)
+                await sbom_service.delete(sbom2.id)
+            else:
+                print(f"\n💾 Saved to database (IDs: {sbom1.id}, {sbom2.id})")
+    
+    except Exception as e:
+        print(f"❌ Error comparing SBOMs: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+    
+    return 0
+
+
+def print_comparison_summary(result) -> None:
+    """Print human-readable comparison summary."""
+    summary = result.summary
+    
+    # Summary stats
+    print("📊 Summary:")
+    print(f"   Components in baseline:  {summary['total_sbom1']}")
+    print(f"   Components in target:    {summary['total_sbom2']}")
+    print(f"   Added:                   {summary['added']}")
+    print(f"   Removed:                 {summary['removed']}")
+    print(f"   Changed versions:        {summary['changed']}")
+    print(f"   License changes:         {summary['license_changes']}")
+    print(f"   Unchanged:               {summary['unchanged']}")
+    print()
+    
+    # Added components
+    if result.added_components:
+        print(f"✅ Added Components ({len(result.added_components)}):")
+        for comp in result.added_components[:10]:  # Show first 10
+            version = f"v{comp['version']}" if comp['version'] else "no version"
+            license_info = f"({comp['license']})" if comp['license'] else ""
+            print(f"   + {comp['name']} {version} {license_info}")
+        if len(result.added_components) > 10:
+            print(f"   ... and {len(result.added_components) - 10} more")
+        print()
+    
+    # Removed components
+    if result.removed_components:
+        print(f"❌ Removed Components ({len(result.removed_components)}):")
+        for comp in result.removed_components[:10]:
+            version = f"v{comp['version']}" if comp['version'] else "no version"
+            license_info = f"({comp['license']})" if comp['license'] else ""
+            print(f"   - {comp['name']} {version} {license_info}")
+        if len(result.removed_components) > 10:
+            print(f"   ... and {len(result.removed_components) - 10} more")
+        print()
+    
+    # Changed components
+    if result.changed_components:
+        print(f"🔄 Version Changes ({len(result.changed_components)}):")
+        for change in result.changed_components[:10]:
+            old_v = change.old_version or "?"
+            new_v = change.new_version or "?"
+            print(f"   ~ {change.name}: {old_v} → {new_v}")
+        if len(result.changed_components) > 10:
+            print(f"   ... and {len(result.changed_components) - 10} more")
+        print()
+    
+    # License changes
+    if result.license_changes:
+        print(f"⚖️  License Changes ({len(result.license_changes)}):")
+        for change in result.license_changes[:10]:
+            old_lic = change.old_license or "None"
+            new_lic = change.new_license or "None"
+            print(f"   ~ {change.name}: {old_lic} → {new_lic}")
+        if len(result.license_changes) > 10:
+            print(f"   ... and {len(result.license_changes) - 10} more")
+        print()
+    
+    # No changes
+    if not result.added_components and not result.removed_components and not result.changed_components:
+        print("✨ No differences found - SBOMs are identical")
+
+
+def print_comparison_json(result) -> None:
+    """Print comparison as JSON."""
+    import json
+    
+    output = {
+        "sbom1": result.sbom1,
+        "sbom2": result.sbom2,
+        "added": result.added_components,
+        "removed": result.removed_components,
+        "changed": [
+            {
+                "name": c.name,
+                "old_version": c.old_version,
+                "new_version": c.new_version,
+                "old_license": c.old_license,
+                "new_license": c.new_license,
+            }
+            for c in result.changed_components
+        ],
+        "license_changes": [
+            {
+                "name": c.name,
+                "old_license": c.old_license,
+                "new_license": c.new_license,
+            }
+            for c in result.license_changes
+        ],
+        "summary": result.summary
+    }
+    
+    print(json.dumps(output, indent=2))
+
 def server_command(args: argparse.Namespace) -> int:
     """Handle server command."""
     import uvicorn
@@ -318,6 +486,35 @@ Examples:
         help="Verbose output"
     )
 
+    # Compare command
+    compare_parser = subparsers.add_parser(
+        "compare",
+        help="Compare two SBOM files"
+    )
+    compare_parser.add_argument(
+        "file1",
+        help="First SBOM file (baseline)"
+    )
+    compare_parser.add_argument(
+        "file2",
+        help="Second SBOM file (comparison target)"
+    )
+    compare_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output full JSON instead of summary"
+    )
+    compare_parser.add_argument(
+        "--save",
+        action="store_true",
+        help="Save both SBOMs to database after comparison"
+    )
+    compare_parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Verbose output"
+    )
+
     # Server command
     server_parser = subparsers.add_parser(
         "server",
@@ -357,6 +554,8 @@ Examples:
         return asyncio.run(parse_command(args))
     elif args.command == "list":
         return asyncio.run(list_command(args))
+    elif args.command == "compare":
+        return asyncio.run(compare_command(args))
     elif args.command == "server":
         return server_command(args)
     else:
