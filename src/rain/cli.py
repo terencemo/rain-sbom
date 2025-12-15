@@ -228,6 +228,29 @@ async def list_command(args: argparse.Namespace) -> int:
 
     return 0
 
+def server_command(args: argparse.Namespace) -> int:
+    """Handle server command."""
+    import uvicorn
+
+    print("🌧️  Starting RAIN SBOM API server...")
+    print(f"📡 Host: {args.host}")
+    print(f"🔌 Port: {args.port}")
+    print(f"🔄 Reload: {args.reload}")
+    print("\n🌐 API Documentation:")
+    print(f"   Swagger UI: http://{args.host}:{args.port}/docs")
+    print(f"   ReDoc:      http://{args.host}:{args.port}/redoc")
+    print("\nPress CTRL+C to stop\n")
+
+    uvicorn.run(
+        "rain.main:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        log_level=args.log_level
+    )
+
+    return 0
+
 def main() -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -295,6 +318,34 @@ Examples:
         help="Verbose output"
     )
 
+    # Server command
+    server_parser = subparsers.add_parser(
+        "server",
+        help="Start FastAPI server"
+    )
+    server_parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind (default: 0.0.0.0)"
+    )
+    server_parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to bind (default: 8000)"
+    )
+    server_parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable auto-reload on code changes"
+    )
+    server_parser.add_argument(
+        "--log-level",
+        default="info",
+        choices=["critical", "error", "warning", "info", "debug"],
+        help="Log level (default: info)"
+    )
+
     args = parser.parse_args()
     
     # Set log level
@@ -306,6 +357,8 @@ Examples:
         return asyncio.run(parse_command(args))
     elif args.command == "list":
         return asyncio.run(list_command(args))
+    elif args.command == "server":
+        return server_command(args)
     else:
         parser.print_help()
         return 1

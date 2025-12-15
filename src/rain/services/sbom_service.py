@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.database import SBOM, Component, Vulnerability
@@ -36,7 +37,7 @@ class SBOMService:
             name: Optional custom name (overrides parsed.name)
 
         Returns:
-            Saved SBOM model
+            Saved SBOM model with eager-loaded relationships
         """
         # Calculate file hash (SHA-256)
         file_hash = hashlib.sha256(raw_data.encode()).hexdigest()
@@ -45,6 +46,8 @@ class SBOMService:
         existing = await self.get_by_hash(file_hash)
         if existing:
             logger.warning(f"SBOM with hash {file_hash[:8]}... already exists (ID: {existing.id})")
+            # Refresh to ensure relationships are loaded
+            await self.session.refresh(existing, ["components", "vulnerabilities"])
             return existing
 
         # Create SBOM record
@@ -87,7 +90,9 @@ class SBOMService:
             self.session.add(vulnerability)
 
         await self.session.commit()
-        await self.session.refresh(sbom)
+
+        # Refresh with relationships to avoid lazy loading
+        await self.session.refresh(sbom, ["components", "vulnerabilities"])
 
         logger.info(f"Saved SBOM: {sbom.name} (ID: {sbom.id}, {len(parsed.components)} components)")
 
@@ -119,11 +124,22 @@ class SBOMService:
         return await self.save_parsed_sbom(parsed, file_content, name)
 
     async def get_by_id(self, sbom_id: int) -> SBOM | None:
-        """Get SBOM by ID."""
+        """Get SBOM by ID with eager-loaded relationships."""
         result = await self.session.execute(
-            select(SBOM).where(SBOM.id == sbom_id)
+            select(SBOM)
+            .options(
+                selectinload(SBOM.components),
+                selectinload(SBOM.vulnerabilities)
+            )
+            .where(SBOM.id == sbom_id)
         )
-        return result.scalar_one_or_none()
+        sbom = result.scalar_one_or_none()
+
+        if sbom:
+            # Explicitly refresh to ensure relationships are loaded
+            await self.session.refresh(sbom, ["components", "vulnerabilities"])
+
+        return sbom
 
     async def get_by_hash(self, file_hash: str) -> SBOM | None:
         """Get SBOM by file hash."""
@@ -137,9 +153,13 @@ class SBOMService:
         limit: int = 100,
         offset: int = 0
     ) -> list[SBOM]:
-        """List all SBOMs."""
+        """List all SBOMs with eager-loaded relationships."""
         result = await self.session.execute(
             select(SBOM)
+            .options(
+                selectinload(SBOM.components),      # Eager load components
+                selectinload(SBOM.vulnerabilities)  # Eager load vulnerabilities
+            )
             .order_by(SBOM.uploaded_at.desc())
             .limit(limit)
             .offset(offset)
