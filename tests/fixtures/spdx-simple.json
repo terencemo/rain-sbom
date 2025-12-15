@@ -1,0 +1,21 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "test-app",
+  "documentNamespace": "https://example.com/test-app",
+  "creationInfo": {
+    "created": "2024-12-10T14:30:00Z",
+    "creators": ["Tool: test"]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-requests",
+      "name": "requests",
+      "versionInfo": "2.31.0",
+      "downloadLocation": "https://pypi.org/project/requests/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0"
+    }
+  ]
+}
