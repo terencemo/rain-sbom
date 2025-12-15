@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RAIN SBOM{% endblock %}</title>
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- htmx -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+
+    <style>
+        /* Custom styles */
+        .htmx-indicator {
+            display: none;
+        }
+        .htmx-request .htmx-indicator {
+            display: inline;
+        }
+        .htmx-request.htmx-indicator {
+            display: inline;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="text-3xl">🌧️</span>
+                    <div>
+                        <h1 class="text-2xl font-bold">RAIN SBOM</h1>
+                        <p class="text-blue-100 text-sm">RAIN Ain't Inventory Notation</p>
+                    </div>
+                </div>
+                <nav class="space-x-4">
+                    <a href="/" class="hover:text-blue-200 transition">Home</a>
+                    <a href="/docs" target="_blank" class="hover:text-blue-200 transition">API Docs</a>
+                    <a href="https://github.com/yourusername/rain-sbom" target="_blank" class="hover:text-blue-200 transition">GitHub</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-300 mt-16">
+        <div class="container mx-auto px-4 py-6 text-center">
+            <p>Built with 🍵 by Terence Monteiro | Apache License 2.0</p>
+            <p class="text-sm text-gray-400 mt-2">CycloneDX • SPDX • Supply Chain Security</p>
+        </div>
+    </footer>
+</body>
+</html>

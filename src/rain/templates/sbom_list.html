@@ -1,0 +1,91 @@
+{% if sboms %}
+<div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Format</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Components</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for sbom in sboms %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4">
+                    <div class="text-sm font-medium text-gray-900">{{ sbom.name }}</div>
+                    {% if sbom.version %}
+                    <div class="text-sm text-gray-500">v{{ sbom.version }}</div>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                        {% if sbom.format == 'cyclonedx' %}bg-blue-100 text-blue-800{% else %}bg-green-100 text-green-800{% endif %}">
+                        {{ sbom.format }}
+                    </span>
+                    <div class="text-xs text-gray-500 mt-1">{{ sbom.spec_version }}</div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900">
+                    <div>📦 {{ sbom.component_count }}</div>
+                    {% if sbom.vulnerability_count > 0 %}
+                    <div class="text-red-600">🛡️ {{ sbom.vulnerability_count }}</div>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                    {{ sbom.uploaded_at }}
+                </td>
+                <td class="px-6 py-4 text-sm space-x-2">
+                    <button
+                        hx-get="/api/sboms/{{ sbom.id }}/details-html"
+                        hx-target="#details-modal-content"
+                        onclick="document.getElementById('details-modal').classList.remove('hidden')"
+                        class="text-blue-600 hover:text-blue-900"
+                    >
+                        View
+                    </button>
+                    <button
+                        hx-delete="/api/sboms/{{ sbom.id }}"
+                        hx-confirm="Delete {{ sbom.name }}?"
+                        hx-target="closest tr"
+                        hx-swap="outerHTML swap:1s"
+                        class="text-red-600 hover:text-red-900"
+                    >
+                        Delete
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-4 text-sm text-gray-600">
+    Total: {{ total }} SBOMs
+</div>
+{% else %}
+<div class="text-center py-12">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">No SBOMs</h3>
+    <p class="mt-1 text-sm text-gray-500">Upload an SBOM file to get started.</p>
+</div>
+{% endif %}
+
+<!-- Details Modal -->
+<div id="details-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold">SBOM Details</h3>
+            <button onclick="document.getElementById('details-modal').classList.add('hidden')" class="text-gray-600 hover:text-gray-900">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div id="details-modal-content" class="max-h-96 overflow-y-auto">
+            <!-- Details loaded here via htmx -->
+        </div>
+    </div>
+</div>
