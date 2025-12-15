@@ -4,6 +4,7 @@ from typing import Any
 
 from .base import BaseParser, ParserError
 from .cyclonedx import CycloneDXParser
+from .spdx import SPDXParser
 
 __all__ = ["get_parser", "ParserError", "BaseParser"]
 
@@ -23,7 +24,7 @@ def get_parser(data: dict[str, Any]) -> BaseParser:
     """
     parsers: list[type[BaseParser]] = [
         CycloneDXParser,
-        # SPDXParser will go here later
+        SPDXParser,
     ]
     
     for parser_class in parsers:
